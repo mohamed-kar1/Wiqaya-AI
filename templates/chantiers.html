@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Chantiers{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-title"><i class="fa-solid fa-hard-hat"></i> Chantiers</div>
+  <button class="btn btn-primary" onclick="openModal('modalChantier')">
+    <i class="fa-solid fa-plus"></i> Nouveau chantier
+  </button>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem;">
+  {% for ch in chantiers %}
+  <div class="card">
+    <div class="card-header">
+      <i class="fa-solid fa-hard-hat"></i>
+      {{ ch.nom }}
+      <span class="badge {% if ch.statut == 'actif' %}badge-green{% else %}badge-orange{% endif %}" style="margin-left:auto;">
+        {{ ch.statut|capitalize }}
+      </span>
+    </div>
+    <div class="card-body">
+      {% if ch.adresse %}<div style="font-size:.8rem;color:var(--muted);margin-bottom:.5rem;"><i class="fa-solid fa-location-dot"></i> {{ ch.adresse }}{% if ch.ville %}, {{ ch.ville }}{% endif %}</div>{% endif %}
+      {% if ch.responsable %}<div style="font-size:.8rem;color:var(--muted);margin-bottom:.75rem;"><i class="fa-solid fa-user"></i> {{ ch.responsable }}</div>{% endif %}
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+        <span class="badge badge-blue"><i class="fa-solid fa-video"></i> {{ ch.nb_cameras }} caméra(s)</span>
+        <span class="badge badge-amber"><i class="fa-solid fa-people-group"></i> {{ ch.nb_ouvriers }} ouvrier(s)</span>
+      </div>
+      <div style="display:flex;gap:.5rem;margin-top:.85rem;">
+        <a href="/ouvriers?chantier_id={{ ch.id }}" class="btn btn-ghost" style="font-size:.75rem;">
+          <i class="fa-solid fa-people-group"></i> Ouvriers
+        </a>
+        <a href="/cameras" class="btn btn-ghost" style="font-size:.75rem;">
+          <i class="fa-solid fa-video"></i> Caméras
+        </a>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="card" style="grid-column:1/-1;">
+    <div class="empty-state">
+      <i class="fa-solid fa-hard-hat"></i>
+      <p>Aucun chantier configuré</p>
+      <button class="btn btn-primary" style="margin-top:.75rem;" onclick="openModal('modalChantier')">
+        <i class="fa-solid fa-plus"></i> Créer un chantier
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalChantier">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Nouveau chantier</div>
+      <button class="modal-close" onclick="closeModal('modalChantier')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nom du chantier *</label>
+      <input class="form-input" type="text" id="chNom" placeholder="ex: Chantier Centre Ville"/>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Adresse</label>
+        <input class="form-input" type="text" id="chAdresse" placeholder="Rue Hassan II"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ville</label>
+        <input class="form-input" type="text" id="chVille" placeholder="Casablanca"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Responsable</label>
+      <input class="form-input" type="text" id="chResp" placeholder="M. Alami"/>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Date début</label>
+        <input class="form-input" type="date" id="chDebut"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date fin prévue</label>
+        <input class="form-input" type="date" id="chFin"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalChantier')">Annuler</button>
+      <button class="btn btn-primary" onclick="createChantier()">Créer</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+async function createChantier() {
+  await apiPost('/api/chantiers', {
+    nom: document.getElementById('chNom').value,
+    adresse: document.getElementById('chAdresse').value,
+    ville: document.getElementById('chVille').value,
+    responsable: document.getElementById('chResp').value,
+    date_debut: document.getElementById('chDebut').value,
+    date_fin: document.getElementById('chFin').value,
+  });
+  closeModal('modalChantier');
+  showToast('Chantier créé');
+  setTimeout(() => location.reload(), 800);
+}
+</script>
+{% endblock %}

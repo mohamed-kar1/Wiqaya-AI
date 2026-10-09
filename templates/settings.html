@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}Paramètres{% endblock %}
+
+{% block extra_css %}
+<style>
+  .scard{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:1rem;}
+  .scard-header{
+    padding:.75rem 1.1rem;border-bottom:1px solid var(--border);
+    display:flex;align-items:center;gap:.6rem;
+    font-family:'Barlow Condensed',sans-serif;font-size:.88rem;font-weight:600;
+    letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;
+  }
+  .scard-header i{color:var(--accent);}
+  .scard-body{padding:1.25rem;}
+  .form-hint{font-size:.7rem;color:var(--muted);margin-top:.3rem;}
+  .divider{border:none;border-top:1px solid var(--border);margin:1rem 0;}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:.5rem 0;}
+  .toggle-info .toggle-title{font-size:.88rem;font-weight:500;}
+  .toggle-info .toggle-desc{font-size:.72rem;color:var(--muted);margin-top:.15rem;}
+  .toggle{position:relative;width:46px;height:26px;flex-shrink:0;}
+  .toggle input{opacity:0;width:0;height:0;}
+  .slider{position:absolute;inset:0;background:var(--surface2);border:1px solid var(--border);border-radius:99px;cursor:pointer;transition:.3s;}
+  .slider:before{content:"";position:absolute;height:20px;width:20px;left:2px;bottom:2px;background:var(--muted);border-radius:50%;transition:.3s;}
+  input:checked+.slider{background:var(--accent);border-color:var(--accent);}
+  input:checked+.slider:before{transform:translateX(20px);background:#fff;}
+  .range-wrap{display:flex;align-items:center;gap:.85rem;}
+  input[type=range]{flex:1;-webkit-appearance:none;height:5px;border-radius:99px;background:var(--surface2);outline:none;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accent);cursor:pointer;box-shadow:0 0 6px rgba(245,158,11,.4);}
+  .range-val{background:var(--accent);color:#000;font-family:'Barlow Condensed',sans-serif;font-size:.9rem;font-weight:700;min-width:48px;text-align:center;padding:.2rem .5rem;border-radius:8px;}
+  .ppe-grid{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:.35rem;}
+  .ppe-chip{display:flex;align-items:center;gap:.5rem;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.45rem 1rem;font-size:.83rem;cursor:pointer;transition:all .2s;user-select:none;}
+  .ppe-chip:hover{border-color:var(--accent);}
+  .ppe-chip.active{background:rgba(245,158,11,.15);border-color:var(--accent);color:var(--accent);}
+  .chip-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);transition:background .2s;flex-shrink:0;}
+  .ppe-chip.active .chip-dot{background:var(--accent);}
+  .model-status{display:flex;align-items:center;gap:.75rem;background:var(--surface2);border-radius:10px;padding:.75rem 1rem;}
+  .model-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+  .info-box{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:10px;padding:.75rem 1rem;font-size:.78rem;color:var(--blue);display:flex;align-items:flex-start;gap:.6rem;margin-top:.5rem;}
+  .whatsapp-box{background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.2);border-radius:10px;padding:.75rem 1rem;font-size:.78rem;color:#25d366;display:flex;align-items:flex-start;gap:.6rem;margin-top:.5rem;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title"><i class="fa-solid fa-sliders"></i> Paramètres</div>
+</div>
+
+<!-- Modèle IA -->
+<div class="scard">
+  <div class="scard-header"><i class="fa-solid fa-brain"></i> Modèle IA</div>
+  <div class="scard-body">
+    <div class="model-status">
+      <div class="model-dot" style="background:var(--green);box-shadow:0 0 6px var(--green);"></div>
+      <div>
+        <div style="font-size:.88rem;font-weight:600;">ppe.pt — YOLOv8s</div>
+        <div style="font-size:.72rem;color:var(--muted);">10 classes EPI · mAP50 : 82% · Entraîné sur 2 590 images chantier</div>
+      </div>
+      <span class="badge badge-green" style="margin-left:auto;">ACTIF</span>
+    </div>
+  </div>
+</div>
+
+<!-- Détection EPI -->
+<div class="scard">
+  <div class="scard-header"><i class="fa-solid fa-eye"></i> Détection EPI</div>
+  <div class="scard-body">
+    <div class="form-group">
+      <label class="form-label">EPI obligatoires sur le chantier</label>
+      <p class="form-hint" style="margin-bottom:.6rem;">Une alerte est déclenchée si un ouvrier est détecté sans ces équipements.</p>
+      <div class="ppe-grid" id="ppeChips">
+        {% set ppe_list = [("Hardhat","fa-hard-hat","Casque"),("Safety Vest","fa-vest","Gilet"),("Mask","fa-mask-face","Masque")] %}
+        {% for ppe, icon, label in ppe_list %}
+        <div class="ppe-chip {% if ppe in config.required_ppe %}active{% endif %}"
+             data-ppe="{{ ppe }}" onclick="this.classList.toggle('active')">
+          <div class="chip-dot"></div>
+          <i class="fa-solid {{ icon }}"></i> {{ label }}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <hr class="divider"/>
+    <div class="form-group">
+      <label class="form-label">Seuil de confiance — Précision minimale de détection</label>
+      <div class="range-wrap">
+        <input type="range" id="confRange" min="10" max="90" step="5"
+               value="{{ (config.confidence_threshold * 100)|int }}"
+               oninput="document.getElementById('confVal').textContent=(this.value/100).toFixed(2)"/>
+        <div class="range-val" id="confVal">{{ config.confidence_threshold }}</div>
+      </div>
+      <p class="form-hint">0.45 = équilibré · 0.55 = recommandé (moins de fausses détections) · 0.70 = strict</p>
+    </div>
+    <hr class="divider"/>
+    <div class="form-group">
+      <label class="form-label">Délai avant alerte — Secondes de présence avant enregistrement</label>
+      <div class="range-wrap">
+        <input type="range" id="delayRange" min="1" max="30" step="1"
+               value="{{ config.alert_delay_sec }}"
+               oninput="document.getElementById('delayVal').textContent=this.value+'s'"/>
+        <div class="range-val" id="delayVal">{{ config.alert_delay_sec }}s</div>
+      </div>
+      <p class="form-hint">3s = recommandé · évite les alertes pour les passages rapides</p>
+    </div>
+    <hr class="divider"/>
+    <div class="form-group">
+      <label class="form-label">Cooldown entre 2 alertes du même type (secondes)</label>
+      <div class="range-wrap">
+        <input type="range" id="cooldownRange" min="10" max="300" step="10"
+               value="{{ config.cooldown_sec | default(30) }}"
+               oninput="document.getElementById('cooldownVal').textContent=this.value+'s'"/>
+        <div class="range-val" id="cooldownVal">{{ config.cooldown_sec | default(30) }}s</div>
+      </div>
+      <p class="form-hint">30s = recommandé · évite les alertes répétitives pour la même personne</p>
+    </div>
+  </div>
+</div>
+
+<!-- Alertes WhatsApp -->
+<div class="scard">
+  <div class="scard-header">
+    <i class="fa-brands fa-whatsapp" style="color:#25d366;"></i>
+    Alertes WhatsApp (Twilio)
+  </div>
+  <div class="scard-body">
+    <div class="toggle-row">
+      <div class="toggle-info">
+        <div class="toggle-title">Activer les alertes WhatsApp</div>
+        <div class="toggle-desc">Envoie un message WhatsApp au responsable HSE à chaque violation détectée</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="waEnabled" {% if config.whatsapp_alerts %}checked{% endif %}/>
+        <span class="slider"></span>
+      </label>
+    </div>
+    <hr class="divider"/>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Numéro destinataire (format international)</label>
+        <input class="form-input" type="text" id="waNumber"
+               value="{{ config.whatsapp_number }}" placeholder="+212600000000"/>
+        <p class="form-hint">Le numéro qui recevra les alertes WhatsApp</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Numéro Twilio expéditeur</label>
+        <input class="form-input" type="text" id="twilioFrom"
+               value="{{ config.twilio_from_number | default('whatsapp:+14155238886') }}"
+               placeholder="whatsapp:+14155238886"/>
+        <p class="form-hint">Sandbox Twilio par défaut</p>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Twilio Account SID</label>
+        <input class="form-input" type="text" id="twilioSid"
+               value="{{ config.twilio_account_sid }}" placeholder="ACxxxxxxxxxxxxxxxxxxxx"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Twilio Auth Token</label>
+        <input class="form-input" type="password" id="twilioToken"
+               value="{{ config.twilio_auth_token }}" placeholder="••••••••••••••••"/>
+      </div>
+    </div>
+    <div class="whatsapp-box">
+      <i class="fa-brands fa-whatsapp" style="margin-top:.1rem;flex-shrink:0;"></i>
+      <div>
+        <strong>Format du message envoyé :</strong><br/>
+        "⚠️ WiqayaAI ALERTE — [Type EPI manquant] détecté à [Heure] — Zone: [Nom zone] — Chantier: [Nom chantier]"
+      </div>
+    </div>
+    <div class="info-box" style="margin-top:.75rem;">
+      <i class="fa-solid fa-circle-info" style="margin-top:.1rem;flex-shrink:0;"></i>
+      <span>Pour activer WhatsApp : créez un compte sur <strong>twilio.com</strong>, activez le sandbox WhatsApp Sandbox, puis copiez vos identifiants ci-dessus.</span>
+    </div>
+  </div>
+</div>
+
+<!-- Bouton save -->
+<div style="display:flex;justify-content:flex-end;margin-top:.5rem;">
+  <button class="btn btn-primary" style="font-size:.95rem;padding:.6rem 1.8rem;" onclick="saveSettings()">
+    <i class="fa-solid fa-floppy-disk"></i> Enregistrer les paramètres
+  </button>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function saveSettings() {
+  const required_ppe = [...document.querySelectorAll('.ppe-chip.active')].map(e => e.dataset.ppe);
+  const data = {
+    required_ppe,
+    confidence_threshold: parseFloat(document.getElementById('confRange').value) / 100,
+    alert_delay_sec: parseInt(document.getElementById('delayRange').value),
+    cooldown_sec: parseInt(document.getElementById('cooldownRange').value),
+    whatsapp_alerts: document.getElementById('waEnabled').checked,
+    whatsapp_number: document.getElementById('waNumber').value,
+    twilio_account_sid: document.getElementById('twilioSid').value,
+    twilio_auth_token: document.getElementById('twilioToken').value,
+    twilio_from_number: document.getElementById('twilioFrom').value,
+  };
+  const r = await apiPost('/settings', data);
+  if (r.status === 'saved') showToast('✅ Paramètres enregistrés');
+  else showToast('Erreur lors de la sauvegarde', 'error');
+}
+</script>
+{% endblock %}

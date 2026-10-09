@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Administration WiqayaAI{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-title"><i class="fa-solid fa-shield-halved"></i> Administration WiqayaAI</div>
+  <button class="btn btn-primary" onclick="openModal('modalSociete')">
+    <i class="fa-solid fa-plus"></i> Nouvelle société
+  </button>
+</div>
+
+<!-- Stats globales -->
+<div class="kpi-grid" style="margin-bottom:1.5rem;">
+  <div class="kpi" style="--kpi-c:var(--green)">
+    <div class="kpi-label">Sociétés actives</div>
+    <div class="kpi-val">{{ stats.nb_societes }}</div>
+    <div class="kpi-sub">sur {{ stats.nb_societes_total }} total</div>
+    <i class="fa-solid fa-building kpi-icon"></i>
+  </div>
+  <div class="kpi" style="--kpi-c:var(--blue)">
+    <div class="kpi-label">Caméras connectées</div>
+    <div class="kpi-val">{{ stats.nb_cameras }}</div>
+    <div class="kpi-sub">actives</div>
+    <i class="fa-solid fa-video kpi-icon"></i>
+  </div>
+  <div class="kpi" style="--kpi-c:var(--red)">
+    <div class="kpi-label">Violations aujourd'hui</div>
+    <div class="kpi-val">{{ stats.nb_violations_today }}</div>
+    <div class="kpi-sub">toutes sociétés</div>
+    <i class="fa-solid fa-triangle-exclamation kpi-icon"></i>
+  </div>
+  <div class="kpi" style="--kpi-c:var(--accent)">
+    <div class="kpi-label">Abonnements actifs</div>
+    <div class="kpi-val">{{ stats.nb_societes }}</div>
+    <div class="kpi-sub">clients</div>
+    <i class="fa-solid fa-credit-card kpi-icon"></i>
+  </div>
+</div>
+
+<!-- Liste sociétés -->
+<div class="card">
+  <div class="card-header">
+    <i class="fa-solid fa-building"></i>
+    Sociétés clientes
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Société</th><th>Secteur</th><th>Ville</th><th>Abonnement</th><th>Caméras</th><th>Chantiers</th><th>Ouvriers</th><th>Statut</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for s in societes %}
+        <tr>
+          <td>
+            <div style="font-weight:600;">{{ s.nom }}</div>
+            <div style="font-size:.72rem;color:var(--muted);">{{ s.email }}</div>
+          </td>
+          <td><span class="badge badge-blue">{{ s.secteur }}</span></td>
+          <td style="color:var(--muted);">{{ s.ville or '—' }}</td>
+          <td>
+            {% if s.abonnement == 'starter' %}<span class="badge badge-blue">Starter</span>
+            {% elif s.abonnement == 'pro' %}<span class="badge badge-amber">Pro</span>
+            {% else %}<span class="badge badge-green">Enterprise</span>{% endif %}
+          </td>
+          <td style="text-align:center;">{{ s.nb_cameras }}</td>
+          <td style="text-align:center;">{{ s.nb_chantiers }}</td>
+          <td style="text-align:center;">{{ s.nb_ouvriers }}</td>
+          <td>
+            {% if s.statut == 'actif' %}<span class="badge badge-green">Actif</span>
+            {% elif s.statut == 'suspendu' %}<span class="badge badge-orange">Suspendu</span>
+            {% else %}<span class="badge badge-red">Expiré</span>{% endif %}
+          </td>
+          <td>
+            <div style="display:flex;gap:.3rem;">
+              {% if s.statut == 'actif' %}
+              <button class="btn btn-danger" style="font-size:.7rem;padding:.2rem .5rem;"
+                      onclick="updateStatut({{ s.id }}, 'suspendu')">
+                <i class="fa-solid fa-pause"></i>
+              </button>
+              {% else %}
+              <button class="btn btn-success" style="font-size:.7rem;padding:.2rem .5rem;"
+                      onclick="updateStatut({{ s.id }}, 'actif')">
+                <i class="fa-solid fa-play"></i>
+              </button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" style="text-align:center;color:var(--muted);padding:2rem;">Aucune société créée</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Notice confidentialité -->
+<div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:12px;padding:1rem 1.25rem;margin-top:1.25rem;">
+  <div style="font-size:.8rem;color:var(--accent);font-weight:600;margin-bottom:.35rem;">
+    <i class="fa-solid fa-lock"></i> Confidentialité des données
+  </div>
+  <div style="font-size:.75rem;color:var(--muted);">
+    En tant que Super Admin, vous avez uniquement accès aux informations commerciales (nom, abonnement, nombre de caméras).
+    Les données HSE des clients (violations, ouvriers, stock EPI) sont strictement confidentielles et isolées.
+  </div>
+</div>
+
+<!-- Modal Nouvelle Société -->
+<div class="modal-overlay" id="modalSociete">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <div class="modal-title">Créer une nouvelle société</div>
+      <button class="modal-close" onclick="closeModal('modalSociete')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div style="font-size:.75rem;color:var(--muted);margin-bottom:1rem;background:var(--surface2);border-radius:8px;padding:.6rem .85rem;">
+      Un compte Admin HSE sera créé automatiquement avec les identifiants fournis.
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Nom de la société *</label>
+        <input class="form-input" type="text" id="sNom" placeholder="BTP Casablanca"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Secteur</label>
+        <select class="form-select" id="sSecteur">
+          <option>BTP</option><option>Industrie</option><option>Mines</option>
+          <option>Logistique</option><option>Énergie</option><option>Autre</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Ville</label>
+        <input class="form-input" type="text" id="sVille" placeholder="Casablanca"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Abonnement</label>
+        <select class="form-select" id="sAbo">
+          <option value="starter">Starter — 2 000 Dh/mois</option>
+          <option value="pro">Pro — 5 000 Dh/mois</option>
+          <option value="enterprise">Enterprise — Sur devis</option>
+        </select>
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--border);margin:.85rem 0;padding-top:.85rem;">
+      <div style="font-size:.78rem;font-weight:600;margin-bottom:.75rem;">Compte Admin HSE</div>
+      <div class="form-group">
+        <label class="form-label">Email Admin HSE *</label>
+        <input class="form-input" type="email" id="sEmail" placeholder="hse@societe.ma"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mot de passe initial *</label>
+        <input class="form-input" type="text" id="sPass" placeholder="Minimum 6 caractères"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalSociete')">Annuler</button>
+      <button class="btn btn-primary" onclick="createSociete()">Créer le compte</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function createSociete() {
+  const data = {
+    nom: document.getElementById('sNom').value,
+    secteur: document.getElementById('sSecteur').value,
+    ville: document.getElementById('sVille').value,
+    abonnement: document.getElementById('sAbo').value,
+    email_admin: document.getElementById('sEmail').value,
+    password_admin: document.getElementById('sPass').value,
+  };
+  if (!data.nom || !data.email_admin || !data.password_admin) {
+    showToast('Champs requis manquants', 'error'); return;
+  }
+  await apiPost('/api/admin/societes', data);
+  closeModal('modalSociete');
+  showToast('Société créée avec succès');
+  setTimeout(() => location.reload(), 800);
+}
+
+async function updateStatut(id, statut) {
+  const action = statut === 'actif' ? 'réactiver' : 'suspendre';
+  if (!confirm(`Voulez-vous ${action} cette société ?`)) return;
+  await apiPost(`/api/admin/societes/${id}/statut`, { statut });
+  showToast('Statut mis à jour');
+  setTimeout(() => location.reload(), 800);
+}
+</script>
+{% endblock %}

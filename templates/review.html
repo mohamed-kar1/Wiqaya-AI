@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Historique violations{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-title"><i class="fa-solid fa-clock-rotate-left"></i> Historique violations</div>
+  <a href="/rapport" class="btn btn-primary"><i class="fa-solid fa-file-pdf"></i> Rapport PDF</a>
+</div>
+
+<!-- Stats -->
+<div class="kpi-grid" style="margin-bottom:1.25rem;">
+  <div class="kpi" style="--kpi-c:var(--red)">
+    <div class="kpi-label">Total 30 jours</div>
+    <div class="kpi-val">{{ violations|length }}</div>
+    <div class="kpi-sub">violations enregistrées</div>
+    <i class="fa-solid fa-triangle-exclamation kpi-icon"></i>
+  </div>
+  <div class="kpi" style="--kpi-c:{% if hse.color == 'success' %}var(--green){% elif hse.color == 'warning' %}var(--orange){% else %}var(--red){% endif %}">
+    <div class="kpi-label">Score HSE</div>
+    <div class="kpi-val">{{ hse.score }}/100</div>
+    <div class="kpi-sub">{{ hse.label }}</div>
+    <i class="fa-solid fa-star kpi-icon"></i>
+  </div>
+  {% for epi, cnt in stats.items() %}
+  <div class="kpi" style="--kpi-c:var(--orange)">
+    <div class="kpi-label">{{ epi }}</div>
+    <div class="kpi-val">{{ cnt }}</div>
+    <div class="kpi-sub">violations 7 jours</div>
+    <i class="fa-solid fa-hard-hat kpi-icon"></i>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Filtres -->
+<div style="display:flex;gap:.6rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center;">
+  <div style="position:relative;flex:1;max-width:260px;">
+    <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:.75rem;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.8rem;"></i>
+    <input class="form-input" type="text" id="searchInput" placeholder="Rechercher..."
+           style="padding-left:2.2rem;" oninput="filterTable()"/>
+  </div>
+  <button class="btn btn-ghost active" onclick="setFilter('all',this)" id="filterAll">Tous</button>
+  <button class="btn btn-ghost" onclick="setFilter('NO-Hardhat',this)">Sans casque</button>
+  <button class="btn btn-ghost" onclick="setFilter('NO-Safety Vest',this)">Sans gilet</button>
+  <button class="btn btn-ghost" onclick="setFilter('NO-Mask',this)">Sans masque</button>
+  <span style="margin-left:auto;font-size:.75rem;color:var(--muted);" id="rowCount"></span>
+</div>
+
+<!-- Table -->
+<div class="card">
+  <div class="card-header"><i class="fa-solid fa-list"></i> Violations — 30 derniers jours</div>
+  <div class="table-wrap">
+    {% if violations %}
+    <table id="violTable">
+      <thead>
+        <tr><th>#</th><th>Date</th><th>Heure</th><th>Type</th><th>Zone</th><th>Chantier</th><th>Caméra</th><th>Photo</th></tr>
+      </thead>
+      <tbody>
+        {% for v in violations %}
+        <tr data-type="{{ v.epi_type }}">
+          <td style="color:var(--muted);font-size:.72rem;">{{ v.id }}</td>
+          <td>{{ v.timestamp[:10] if v.timestamp else '—' }}</td>
+          <td style="font-variant-numeric:tabular-nums;">{{ v.timestamp[11:19] if v.timestamp else '—' }}</td>
+          <td>
+            {% if 'Hardhat' in v.epi_type %}<span class="badge badge-red"><i class="fa-solid fa-hard-hat"></i> {{ v.epi_type }}</span>
+            {% elif 'Vest' in v.epi_type %}<span class="badge badge-orange"><i class="fa-solid fa-vest"></i> {{ v.epi_type }}</span>
+            {% elif 'Mask' in v.epi_type %}<span class="badge" style="background:rgba(234,179,8,.15);color:var(--accent);border:1px solid rgba(234,179,8,.3);"><i class="fa-solid fa-mask-face"></i> {{ v.epi_type }}</span>
+            {% else %}<span class="badge badge-blue">{{ v.epi_type }}</span>{% endif %}
+          </td>
+          <td style="color:var(--muted);">{{ v.zone }}</td>
+          <td style="color:var(--muted);">{{ v.chantier_nom or '—' }}</td>
+          <td style="color:var(--muted);">{{ v.camera_nom or '—' }}</td>
+          <td>
+            {% if v.snapshot %}
+            <a href="/snapshot/{{ v.snapshot }}"
+               target="_blank" style="color:var(--blue);font-size:.78rem;">
+              <i class="fa-solid fa-image"></i>
+            </a>
+            {% else %}<span style="color:var(--muted);font-size:.72rem;">—</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <i class="fa-solid fa-circle-check" style="color:var(--green);opacity:1;"></i>
+      <p>Aucune violation sur les 30 derniers jours</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentFilter = 'all';
+function setFilter(type, btn) {
+  currentFilter = type;
+  document.querySelectorAll('[onclick^="setFilter"]').forEach(b => b.classList.remove('btn-primary'));
+  btn.classList.add('btn-primary');
+  filterTable();
+}
+function filterTable() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  let visible = 0;
+  document.querySelectorAll('#violTable tbody tr').forEach(r => {
+    const typeMatch = currentFilter === 'all' || (r.dataset.type || '') === currentFilter;
+    const textMatch = !q || r.textContent.toLowerCase().includes(q);
+    r.style.display = (typeMatch && textMatch) ? '' : 'none';
+    if (typeMatch && textMatch) visible++;
+  });
+  const cnt = document.getElementById('rowCount');
+  if (cnt) cnt.textContent = visible + ' résultat(s)';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const rows = document.querySelectorAll('#violTable tbody tr');
+  const cnt = document.getElementById('rowCount');
+  if (cnt) cnt.textContent = rows.length + ' résultat(s)';
+});
+</script>
+{% endblock %}

@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Caméras{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-title"><i class="fa-solid fa-video"></i> Caméras</div>
+  <button class="btn btn-primary" onclick="openModal('modalCamera')">
+    <i class="fa-solid fa-plus"></i> Ajouter une caméra
+  </button>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1rem;">
+  {% for cam in cameras %}
+  <div class="card">
+    <div class="card-header">
+      <i class="fa-solid fa-video" style="color:{% if cam.actif %}var(--green){% else %}var(--muted){% endif %}"></i>
+      {{ cam.nom }}
+      <span class="badge {% if cam.actif %}badge-green{% else %}badge-orange{% endif %}" style="margin-left:auto;">
+        {% if cam.actif %}Active{% else %}Inactive{% endif %}
+      </span>
+    </div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.85rem;">
+        <div>
+          <div style="font-size:.65rem;color:var(--muted);margin-bottom:.2rem;">TYPE</div>
+          <span class="badge badge-blue">
+            {% if cam.type_camera == 'usb' %}<i class="fa-solid fa-plug"></i> USB
+            {% elif cam.type_camera == 'ip' %}<i class="fa-solid fa-network-wired"></i> IP
+            {% else %}<i class="fa-solid fa-wifi"></i> RTSP{% endif %}
+          </span>
+        </div>
+        <div>
+          <div style="font-size:.65rem;color:var(--muted);margin-bottom:.2rem;">ZONE</div>
+          <span style="font-size:.8rem;">{{ cam.zone or '—' }}</span>
+        </div>
+        <div>
+          <div style="font-size:.65rem;color:var(--muted);margin-bottom:.2rem;">CHANTIER</div>
+          <span style="font-size:.8rem;">{{ cam.chantier_nom or '—' }}</span>
+        </div>
+        <div>
+          <div style="font-size:.65rem;color:var(--muted);margin-bottom:.2rem;">SOURCE</div>
+          <span style="font-size:.75rem;color:var(--muted);word-break:break-all;">
+            {% if cam.type_camera == 'usb' %}Index {{ cam.source }}{% else %}{{ cam.source[:30] }}...{% endif %}
+          </span>
+        </div>
+      </div>
+      <div style="display:flex;gap:.5rem;">
+        <a href="/" class="btn btn-success" style="font-size:.75rem;flex:1;justify-content:center;">
+          <i class="fa-solid fa-eye"></i> Voir live
+        </a>
+        <button class="btn btn-danger" style="font-size:.75rem;" onclick="deleteCamera({{ cam.id }})">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="card" style="grid-column:1/-1;">
+    <div class="empty-state">
+      <i class="fa-solid fa-video-slash"></i>
+      <p>Aucune caméra configurée</p>
+      <button class="btn btn-primary" style="margin-top:.75rem;" onclick="openModal('modalCamera')">
+        <i class="fa-solid fa-plus"></i> Ajouter une caméra
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Info box -->
+<div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:12px;padding:1rem 1.25rem;margin-top:1.25rem;">
+  <div style="font-size:.8rem;color:var(--blue);font-weight:600;margin-bottom:.5rem;">
+    <i class="fa-solid fa-circle-info"></i> Formats de source supportés
+  </div>
+  <div style="font-size:.75rem;color:var(--muted);display:grid;grid-template-columns:1fr 1fr;gap:.35rem;">
+    <span><strong>Webcam USB :</strong> 0, 1, 2... (index)</span>
+    <span><strong>Hikvision :</strong> rtsp://admin:pass@192.168.1.10:554/stream1</span>
+    <span><strong>Dahua :</strong> rtsp://admin:pass@192.168.1.10:554/cam/realmonitor</span>
+    <span><strong>Smartphone :</strong> rtsp://192.168.1.x:8080/h264</span>
+  </div>
+</div>
+
+<!-- Modal Ajouter Caméra -->
+<div class="modal-overlay" id="modalCamera">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Ajouter une caméra</div>
+      <button class="modal-close" onclick="closeModal('modalCamera')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nom de la caméra *</label>
+      <input class="form-input" type="text" id="camNom" placeholder="ex: Caméra Entrée"/>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Zone</label>
+        <input class="form-input" type="text" id="camZone" placeholder="ex: Entrée principale"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Chantier</label>
+        <select class="form-select" id="camChantier">
+          <option value="">— Optionnel —</option>
+          {% for ch in chantiers %}
+          <option value="{{ ch.id }}">{{ ch.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Type de caméra</label>
+      <select class="form-select" id="camType" onchange="updateSourceHint()">
+        <option value="usb">USB / Webcam</option>
+        <option value="ip">Caméra IP (RTSP)</option>
+        <option value="rtsp">URL RTSP directe</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Source</label>
+      <input class="form-input" type="text" id="camSource" value="0"/>
+      <div style="font-size:.7rem;color:var(--muted);margin-top:.3rem;" id="sourceHint">
+        Pour USB : entrez 0 (première webcam), 1 (deuxième), etc.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalCamera')">Annuler</button>
+      <button class="btn btn-primary" onclick="createCamera()">Ajouter</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateSourceHint() {
+  const type = document.getElementById('camType').value;
+  const hint = document.getElementById('sourceHint');
+  const src  = document.getElementById('camSource');
+  if (type === 'usb') {
+    hint.textContent = 'Pour USB : entrez 0 (première webcam), 1 (deuxième), etc.';
+    src.value = '0';
+  } else if (type === 'ip') {
+    hint.textContent = 'ex: rtsp://admin:password@192.168.1.10:554/stream1';
+    src.value = 'rtsp://';
+  } else {
+    hint.textContent = 'URL RTSP complète de la caméra';
+    src.value = 'rtsp://';
+  }
+}
+
+async function createCamera() {
+  const data = {
+    nom: document.getElementById('camNom').value,
+    zone: document.getElementById('camZone').value,
+    chantier_id: document.getElementById('camChantier').value || null,
+    type_camera: document.getElementById('camType').value,
+    source: document.getElementById('camSource').value,
+  };
+  if (!data.nom || !data.source) {
+    showToast('Nom et source requis', 'error'); return;
+  }
+  await apiPost('/api/cameras', data);
+  closeModal('modalCamera');
+  showToast('Caméra ajoutée');
+  setTimeout(() => location.reload(), 800);
+}
+
+async function deleteCamera(id) {
+  if (!confirm('Supprimer cette caméra ?')) return;
+  await apiDelete('/api/cameras/' + id);
+  showToast('Caméra supprimée');
+  setTimeout(() => location.reload(), 800);
+}
+</script>
+{% endblock %}

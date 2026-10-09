@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Ouvriers{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-title"><i class="fa-solid fa-people-group"></i> Ouvriers</div>
+  <button class="btn btn-primary" onclick="openModal('modalOuvrier')">
+    <i class="fa-solid fa-plus"></i> Ajouter
+  </button>
+</div>
+
+<!-- Filtre chantier -->
+<div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+  <a href="/ouvriers" class="btn {% if not chantier_id %}btn-primary{% else %}btn-ghost{% endif %}">Tous</a>
+  {% for ch in chantiers %}
+  <a href="/ouvriers?chantier_id={{ ch.id }}"
+     class="btn {% if chantier_id == ch.id %}btn-primary{% else %}btn-ghost{% endif %}">
+    {{ ch.nom }}
+  </a>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <div class="card-header"><i class="fa-solid fa-people-group"></i> Liste des ouvriers ({{ ouvriers|length }})</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Nom</th><th>Prénom</th><th>Poste</th><th>Chantier</th><th>Téléphone</th><th>Violations (30j)</th><th>Action</th></tr>
+      </thead>
+      <tbody>
+        {% for o in ouvriers %}
+        <tr>
+          <td><strong>{{ o.nom }}</strong></td>
+          <td>{{ o.prenom }}</td>
+          <td><span class="badge badge-blue">{{ o.poste }}</span></td>
+          <td style="color:var(--muted);">{{ o.chantier_nom or '—' }}</td>
+          <td style="color:var(--muted);">{{ o.telephone or '—' }}</td>
+          <td>
+            {% if o.nb_violations > 0 %}
+            <span class="badge badge-red">{{ o.nb_violations }}</span>
+            {% else %}
+            <span class="badge badge-green">0</span>
+            {% endif %}
+          </td>
+          <td>
+            <button class="btn btn-danger" style="font-size:.72rem;padding:.25rem .6rem;"
+                    onclick="deleteOuvrier({{ o.id }})">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:2rem;">Aucun ouvrier enregistré</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOuvrier">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Ajouter un ouvrier</div>
+      <button class="modal-close" onclick="closeModal('modalOuvrier')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Nom *</label>
+        <input class="form-input" type="text" id="oNom" placeholder="Alami"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Prénom</label>
+        <input class="form-input" type="text" id="oPrenom" placeholder="Khalid"/>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Poste</label>
+        <input class="form-input" type="text" id="oPoste" placeholder="Maçon"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Téléphone</label>
+        <input class="form-input" type="text" id="oTel" placeholder="0600000000"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Chantier</label>
+      <select class="form-select" id="oChantier">
+        <option value="">— Sélectionner —</option>
+        {% for ch in chantiers %}
+        <option value="{{ ch.id }}" {% if chantier_id == ch.id %}selected{% endif %}>{{ ch.nom }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Date d'embauche</label>
+      <input class="form-input" type="date" id="oDate"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalOuvrier')">Annuler</button>
+      <button class="btn btn-primary" onclick="createOuvrier()">Ajouter</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+async function createOuvrier() {
+  await apiPost('/api/ouvriers', {
+    nom: document.getElementById('oNom').value,
+    prenom: document.getElementById('oPrenom').value,
+    poste: document.getElementById('oPoste').value,
+    telephone: document.getElementById('oTel').value,
+    chantier_id: document.getElementById('oChantier').value || null,
+    date_embauche: document.getElementById('oDate').value,
+  });
+  closeModal('modalOuvrier');
+  showToast('Ouvrier ajouté');
+  setTimeout(() => location.reload(), 800);
+}
+async function deleteOuvrier(id) {
+  if (!confirm('Supprimer cet ouvrier ?')) return;
+  await apiDelete('/api/ouvriers/' + id);
+  showToast('Ouvrier supprimé');
+  setTimeout(() => location.reload(), 800);
+}
+</script>
+{% endblock %}

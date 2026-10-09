@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>WiqayaAI — Connexion</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap');
+    :root {
+      --bg:#080C14; --surface:#0F1623; --surface2:#1A2333;
+      --border:#243047; --accent:#F59E0B; --accent2:#FCD34D;
+      --blue:#3B82F6; --green:#10B981; --red:#EF4444;
+      --text:#E2E8F0; --muted:#64748B;
+      --font-head:'Barlow Condensed',sans-serif;
+      --font-body:'DM Sans',sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{
+      background:var(--bg);color:var(--text);
+      font-family:var(--font-body);min-height:100vh;
+      display:flex;align-items:center;justify-content:center;
+      position:relative;overflow:hidden;
+    }
+
+    /* Animated background */
+    .bg-grid{
+      position:fixed;inset:0;
+      background-image:
+        linear-gradient(rgba(245,158,11,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(245,158,11,.03) 1px, transparent 1px);
+      background-size:60px 60px;
+      pointer-events:none;
+    }
+    .bg-glow{
+      position:fixed;width:600px;height:600px;
+      background:radial-gradient(circle, rgba(245,158,11,.08) 0%, transparent 70%);
+      top:50%;left:50%;transform:translate(-50%,-50%);
+      pointer-events:none;
+    }
+
+    /* Login card */
+    .login-wrap{
+      position:relative;z-index:10;
+      width:100%;max-width:420px;padding:1rem;
+    }
+    .login-card{
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius:20px;
+      padding:2.5rem 2rem;
+      box-shadow:0 25px 60px rgba(0,0,0,.5);
+    }
+
+    /* Logo */
+    .logo{text-align:center;margin-bottom:2rem;}
+    .logo-icon{
+      width:64px;height:64px;
+      background:linear-gradient(135deg,#F59E0B,#D97706);
+      border-radius:16px;
+      display:inline-flex;align-items:center;justify-content:center;
+      font-size:1.8rem;margin-bottom:.85rem;
+      box-shadow:0 8px 24px rgba(245,158,11,.3);
+    }
+    .logo-title{
+      font-family:var(--font-head);font-size:2rem;font-weight:800;
+      letter-spacing:3px;color:var(--text);
+    }
+    .logo-sub{
+      font-size:.72rem;color:var(--muted);letter-spacing:2px;
+      text-transform:uppercase;margin-top:.2rem;
+    }
+
+    /* Form */
+    .form-group{margin-bottom:1.1rem;}
+    .form-label{
+      font-size:.75rem;color:var(--muted);
+      display:block;margin-bottom:.4rem;letter-spacing:.5px;
+    }
+    .input-wrap{position:relative;}
+    .input-wrap i{
+      position:absolute;left:.9rem;top:50%;
+      transform:translateY(-50%);
+      color:var(--muted);font-size:.85rem;
+    }
+    .form-input{
+      background:var(--surface2);border:1px solid var(--border);
+      color:var(--text);border-radius:10px;
+      padding:.65rem .9rem .65rem 2.5rem;
+      width:100%;font-family:var(--font-body);font-size:.9rem;
+      outline:none;transition:all .2s;
+    }
+    .form-input:focus{
+      border-color:var(--accent);
+      box-shadow:0 0 0 3px rgba(245,158,11,.12);
+    }
+    .form-input::placeholder{color:var(--muted);}
+
+    /* Error */
+    .alert-error{
+      background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);
+      color:#fca5a5;border-radius:10px;padding:.7rem 1rem;
+      font-size:.82rem;margin-bottom:1rem;
+      display:flex;align-items:center;gap:.5rem;
+    }
+
+    /* Button */
+    .btn-login{
+      width:100%;background:linear-gradient(135deg,#D97706,#F59E0B);
+      color:#000;border:none;border-radius:10px;
+      padding:.75rem;font-family:var(--font-head);
+      font-size:1.1rem;font-weight:700;letter-spacing:2px;
+      cursor:pointer;transition:all .2s;margin-top:.5rem;
+    }
+    .btn-login:hover{
+      transform:translateY(-1px);
+      box-shadow:0 6px 20px rgba(245,158,11,.4);
+    }
+
+    /* Credentials hint */
+    .hint-box{
+      background:var(--surface2);border:1px solid var(--border);
+      border-radius:10px;padding:.85rem 1rem;margin-top:1.5rem;
+      font-size:.75rem;color:var(--muted);
+    }
+    .hint-box strong{color:var(--accent);display:block;margin-bottom:.4rem;font-size:.78rem;}
+    .hint-row{display:flex;justify-content:space-between;margin-top:.2rem;}
+    .hint-val{color:var(--text);}
+
+    /* Footer */
+    .login-footer{
+      text-align:center;margin-top:1.5rem;
+      font-size:.72rem;color:var(--muted);
+    }
+  </style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<div class="login-wrap">
+  <div class="login-card">
+
+    <!-- Logo -->
+    <div class="logo">
+      <div class="logo-icon">🛡️</div>
+      <div class="logo-title">WiqayaAI</div>
+      <div class="logo-sub">Wiqaya AI — Surveillance HSE Intelligente</div>
+    </div>
+
+    <!-- Erreur -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+      <div class="alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i> {{ msg }}
+      </div>
+      {% endfor %}
+    {% endwith %}
+
+    <!-- Formulaire -->
+    <form method="POST" action="/login">
+      <div class="form-group">
+        <label class="form-label">Adresse email</label>
+        <div class="input-wrap">
+          <i class="fa-solid fa-envelope"></i>
+          <input class="form-input" type="email" name="email"
+                 placeholder="votre@email.ma" required autofocus/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mot de passe</label>
+        <div class="input-wrap">
+          <i class="fa-solid fa-lock"></i>
+          <input class="form-input" type="password" name="password"
+                 placeholder="••••••••" required/>
+        </div>
+      </div>
+      <button type="submit" class="btn-login">
+        <i class="fa-solid fa-right-to-bracket"></i> SE CONNECTER
+      </button>
+    </form>
+
+    <!-- Comptes démo -->
+    <div class="hint-box">
+      <strong><i class="fa-solid fa-circle-info"></i> Comptes de démonstration</strong>
+      <div class="hint-row">
+        <span>Super Admin :</span>
+        <span class="hint-val">admin@wiqayaai.ma / admin123</span>
+      </div>
+      <div class="hint-row">
+        <span>Admin HSE :</span>
+        <span class="hint-val">hse@btpcasa.ma / hse123</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="login-footer">
+    © 2026 WiqayaAI — Wiqaya AI — Surveillance HSE Intelligente
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block title %}Formations HSE{% endblock %}
+{% block extra_css %}
+<style>
+  .cat-filters{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1.25rem;}
+  .formations-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem;}
+  .formation-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:border-color .2s;}
+  .formation-card:hover{border-color:var(--accent);}
+  .formation-thumb{
+    height:140px;background:var(--surface2);
+    display:flex;align-items:center;justify-content:center;
+    position:relative;overflow:hidden;
+  }
+  .formation-thumb-icon{font-size:3.5rem;opacity:.3;}
+  .formation-thumb iframe{width:100%;height:100%;border:none;}
+  .formation-type-badge{
+    position:absolute;top:.5rem;left:.5rem;
+    padding:2px 8px;border-radius:99px;font-size:.65rem;font-weight:700;
+  }
+  .formation-body{padding:.85rem;}
+  .formation-title{font-size:.88rem;font-weight:600;margin-bottom:.4rem;line-height:1.3;}
+  .formation-cat{font-size:.7rem;color:var(--muted);margin-bottom:.6rem;}
+  .formation-actions{display:flex;gap:.4rem;margin-top:.75rem;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title"><i class="fa-solid fa-graduation-cap"></i> Bibliothèque Formation HSE</div>
+  <button class="btn btn-primary" onclick="openModal('modalFormation')">
+    <i class="fa-solid fa-plus"></i> Ajouter
+  </button>
+</div>
+
+<!-- Filtres catégories -->
+<div class="cat-filters">
+  <a href="/formations" class="btn {% if not categorie_active %}btn-primary{% else %}btn-ghost{% endif %}">
+    <i class="fa-solid fa-grid-2"></i> Tout
+  </a>
+  {% for cat in categories %}
+  <a href="/formations?categorie={{ cat }}"
+     class="btn {% if categorie_active == cat %}btn-primary{% else %}btn-ghost{% endif %}">
+    {% if cat == 'EPI' %}<i class="fa-solid fa-hard-hat"></i>
+    {% elif cat == 'Réglementation' %}<i class="fa-solid fa-scale-balanced"></i>
+    {% elif cat == 'Bonnes pratiques' %}<i class="fa-solid fa-star"></i>
+    {% else %}<i class="fa-solid fa-file-lines"></i>{% endif %}
+    {{ cat }}
+  </a>
+  {% endfor %}
+</div>
+
+<!-- Grille formations -->
+<div class="formations-grid">
+  {% for f in formations %}
+  <div class="formation-card">
+    <div class="formation-thumb">
+      {% if f.type_contenu == 'video' and f.url_contenu and 'embed' in f.url_contenu %}
+        <iframe src="{{ f.url_contenu }}?rel=0&modestbranding=1"
+                allowfullscreen allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+                style="width:100%;height:100%;border:none;"></iframe>
+      {% elif f.type_contenu == 'video' %}
+        <div class="formation-thumb-icon" style="display:flex;flex-direction:column;align-items:center;gap:.4rem;">
+          <span style="font-size:2.5rem;">🎬</span>
+          <span style="font-size:.7rem;color:var(--muted);">Vidéo externe</span>
+        </div>
+      {% elif f.type_contenu == 'document' %}
+        <div class="formation-thumb-icon" style="display:flex;flex-direction:column;align-items:center;gap:.4rem;">
+          <span style="font-size:2.5rem;">📄</span>
+          <span style="font-size:.7rem;color:var(--muted);">Document</span>
+        </div>
+      {% else %}
+        <div class="formation-thumb-icon">📋</div>
+      {% endif %}
+      <span class="formation-type-badge {% if f.type_contenu == 'video' %}badge badge-red{% elif f.type_contenu == 'document' %}badge badge-blue{% else %}badge badge-amber{% endif %}">
+        {% if f.type_contenu == 'video' %}▶ Vidéo
+        {% elif f.type_contenu == 'document' %}📄 Document
+        {% else %}📋 Procédure{% endif %}
+      </span>
+      {% if f.obligatoire %}
+      <span style="position:absolute;top:.5rem;right:.5rem;" class="badge badge-red">Obligatoire</span>
+      {% endif %}
+    </div>
+    <div class="formation-body">
+      <div class="formation-title">{{ f.titre }}</div>
+      <div class="formation-cat">
+        <i class="fa-solid fa-tag"></i> {{ f.categorie }}
+        {% if f.description %} · {{ f.description[:60] }}{% if f.description|length > 60 %}...{% endif %}{% endif %}
+      </div>
+      <div class="formation-actions">
+        {% if f.url_contenu %}
+        <a href="{% if 'embed' in f.url_contenu %}{{ f.url_contenu | replace('embed/', 'watch?v=') }}{% else %}{{ f.url_contenu }}{% endif %}"
+           target="_blank" class="btn btn-primary" style="font-size:.75rem;flex:1;justify-content:center;">
+          {% if f.type_contenu == 'video' %}<i class="fa-brands fa-youtube"></i> Voir la vidéo
+          {% else %}<i class="fa-solid fa-external-link-alt"></i> Consulter{% endif %}
+        </a>
+        {% endif %}
+        <button class="btn btn-danger" style="font-size:.75rem;" onclick="deleteFormation({{ f.id }})">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="card" style="grid-column:1/-1;">
+    <div class="empty-state">
+      <i class="fa-solid fa-graduation-cap"></i>
+      <p>Aucune formation dans cette catégorie</p>
+      <button class="btn btn-primary" style="margin-top:.75rem;" onclick="openModal('modalFormation')">
+        <i class="fa-solid fa-plus"></i> Ajouter un contenu
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Info -->
+<div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:12px;padding:1rem 1.25rem;margin-top:1.25rem;">
+  <div style="font-size:.8rem;color:var(--accent);font-weight:600;margin-bottom:.4rem;">
+    <i class="fa-solid fa-lightbulb"></i> Bibliothèque HSE
+  </div>
+  <div style="font-size:.75rem;color:var(--muted);">
+    Ajoutez des vidéos YouTube, des liens de documents PDF ou des procédures internes. 
+    Cette bibliothèque sert de référence pour votre équipe HSE et vos ouvriers.
+  </div>
+</div>
+
+<!-- Modal Ajouter Formation -->
+<div class="modal-overlay" id="modalFormation">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Ajouter un contenu de formation</div>
+      <button class="modal-close" onclick="closeModal('modalFormation')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Titre *</label>
+      <input class="form-input" type="text" id="fTitre" placeholder="ex: Port correct du casque de chantier"/>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Type de contenu</label>
+        <select class="form-select" id="fType">
+          <option value="video">🎬 Vidéo</option>
+          <option value="document">📄 Document</option>
+          <option value="procedure">📋 Procédure</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Catégorie</label>
+        <select class="form-select" id="fCat">
+          {% for cat in categories %}
+          <option value="{{ cat }}">{{ cat }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">URL (YouTube, lien PDF, etc.)</label>
+      <input class="form-input" type="text" id="fUrl"
+             placeholder="https://www.youtube.com/watch?v=... ou lien PDF"/>
+      <div style="font-size:.7rem;color:var(--muted);margin-top:.25rem;">
+        ✅ Formats acceptés : lien YouTube normal, youtu.be, ou lien direct PDF/document<br/>
+        <span style="opacity:.7;">Ex: https://www.youtube.com/watch?v=ABC123 → converti automatiquement</span>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description (optionnel)</label>
+      <input class="form-input" type="text" id="fDesc" placeholder="Brève description du contenu..."/>
+    </div>
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem;">
+      <label style="font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.5rem;">
+        <input type="checkbox" id="fOblig"/>
+        Marquer comme obligatoire
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalFormation')">Annuler</button>
+      <button class="btn btn-primary" onclick="createFormation()">Ajouter</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function createFormation() {
+  const titre = document.getElementById('fTitre').value;
+  if (!titre) { showToast('Titre requis', 'error'); return; }
+  await apiPost('/api/formations', {
+    titre,
+    type_contenu: document.getElementById('fType').value,
+    categorie: document.getElementById('fCat').value,
+    url_contenu: document.getElementById('fUrl').value,
+    description: document.getElementById('fDesc').value,
+    obligatoire: document.getElementById('fOblig').checked ? 1 : 0,
+  });
+  closeModal('modalFormation');
+  showToast('Formation ajoutée');
+  setTimeout(() => location.reload(), 800);
+}
+
+async function deleteFormation(id) {
+  if (!confirm('Supprimer ce contenu de formation ?')) return;
+  await apiDelete('/api/formations/' + id);
+  showToast('Formation supprimée');
+  setTimeout(() => location.reload(), 800);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Live{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ── Video grid ── */
+  .cam-grid{display:grid;gap:1rem;margin-bottom:1.25rem;}
+  .cam-grid.grid-1{grid-template-columns:1fr;}
+  .cam-grid.grid-2{grid-template-columns:1fr 1fr;}
+  .cam-grid.grid-3{grid-template-columns:1fr 1fr 1fr;}
+  .cam-grid.grid-4{grid-template-columns:1fr 1fr;}
+
+  .cam-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+  .cam-header{
+    padding:.55rem .85rem;border-bottom:1px solid var(--border);
+    display:flex;align-items:center;gap:.5rem;font-size:.8rem;
+  }
+  .cam-name{font-weight:600;flex:1;}
+  .cam-zone{font-size:.7rem;color:var(--muted);}
+  .cam-video{position:relative;background:#000;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;}
+  .cam-video img{width:100%;height:100%;object-fit:cover;}
+  .cam-placeholder{display:flex;flex-direction:column;align-items:center;gap:.5rem;color:var(--muted);}
+  .cam-placeholder i{font-size:2.5rem;opacity:.3;}
+  .cam-overlay{
+    position:absolute;inset:0;pointer-events:none;
+    display:flex;flex-direction:column;justify-content:space-between;
+    padding:.5rem .75rem;
+  }
+  .cam-footer{
+    padding:.5rem .85rem;border-top:1px solid var(--border);
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .live-dot{
+    width:8px;height:8px;border-radius:50%;background:var(--red);
+    animation:pulse-dot 1.5s infinite;flex-shrink:0;
+  }
+  @keyframes pulse-dot{0%,100%{opacity:1;}50%{opacity:.3;}}
+  .compliance-pill{
+    font-size:.72rem;font-weight:700;letter-spacing:1px;
+    padding:2px 10px;border-radius:99px;transition:all .3s;
+  }
+  .pill-ok{background:rgba(16,185,129,.2);color:var(--green);border:1px solid rgba(16,185,129,.4);}
+  .pill-bad{background:rgba(239,68,68,.2);color:var(--red);border:1px solid rgba(239,68,68,.4);animation:flash .8s infinite;}
+  @keyframes flash{0%,100%{border-color:rgba(239,68,68,.4);}50%{border-color:transparent;}}
+  .btn-cam-sm{
+    font-size:.72rem;padding:.25rem .65rem;border-radius:6px;border:none;
+    cursor:pointer;font-weight:600;transition:all .2s;
+  }
+  .btn-start-sm{background:rgba(16,185,129,.2);color:var(--green);border:1px solid rgba(16,185,129,.3);}
+  .btn-stop-sm{background:rgba(239,68,68,.2);color:var(--red);border:1px solid rgba(239,68,68,.3);}
+
+  /* ── Bottom grid ── */
+  .bottom-grid{display:grid;grid-template-columns:1fr 340px;gap:1.25rem;}
+
+  /* ── HSE Gauge ── */
+  .gauge-wrap{position:relative;width:150px;height:80px;margin:0 auto;}
+  .gauge-score{position:absolute;bottom:0;left:50%;transform:translateX(-50%);font-family:'Barlow Condensed',sans-serif;font-size:1.9rem;font-weight:700;}
+
+  /* ── Violations list ── */
+  .viol-item{
+    display:flex;align-items:center;gap:.65rem;
+    padding:.55rem .7rem;border-radius:8px;margin-bottom:.35rem;
+    background:var(--surface2);border-left:2px solid var(--red);
+    animation:slide-in .3s ease;
+  }
+  @keyframes slide-in{from{transform:translateX(-6px);opacity:0;}to{transform:none;opacity:1;}}
+  .viol-dot{width:7px;height:7px;border-radius:50%;background:var(--red);flex-shrink:0;}
+  .no-viol{color:var(--muted);font-size:.82rem;text-align:center;padding:1.5rem;}
+  .no-viol i{font-size:1.5rem;display:block;margin-bottom:.5rem;color:var(--green);}
+
+  @media(max-width:1100px){.bottom-grid{grid-template-columns:1fr;}}
+  @media(max-width:700px){.cam-grid.grid-2,.cam-grid.grid-3,.cam-grid.grid-4{grid-template-columns:1fr;}}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title">
+    <i class="fa-solid fa-gauge-high"></i>
+    Dashboard Live
+    <span style="font-size:.9rem;color:var(--muted);font-weight:400;" id="clock"></span>
+  </div>
+  <div style="display:flex;gap:.6rem;">
+    <a href="/chantiers" class="btn btn-ghost"><i class="fa-solid fa-hard-hat"></i> Chantiers</a>
+    <a href="/cameras" class="btn btn-ghost"><i class="fa-solid fa-video"></i> Caméras</a>
+  </div>
+</div>
+
+<!-- KPI Strip -->
+<div class="kpi-grid" style="margin-bottom:1.25rem;">
+  <div class="kpi" style="--kpi-c:var(--red)">
+    <div class="kpi-label">Violations aujourd'hui</div>
+    <div class="kpi-val" id="kpiToday">0</div>
+    <div class="kpi-sub">détectées</div>
+    <i class="fa-solid fa-triangle-exclamation kpi-icon"></i>
+  </div>
+  <div class="kpi" style="--kpi-c:var(--orange)">
+    <div class="kpi-label">7 derniers jours</div>
+    <div class="kpi-val" id="kpiWeek">{{ hse.nb_violations }}</div>
+    <div class="kpi-sub">violations enregistrées</div>
+    <i class="fa-solid fa-calendar-week kpi-icon"></i>
+  </div>
+  <div class="kpi" style="--kpi-c:var(--green)">
+    <div class="kpi-label">Statut actuel</div>
+    <div class="kpi-val" id="kpiStatut" style="font-size:1rem;margin-top:.3rem;color:var(--muted);">En attente</div>
+    <div class="kpi-sub" id="kpiStatutSub">caméra inactive</div>
+    <i class="fa-solid fa-shield-halved kpi-icon"></i>
+  </div>
+  <div class="kpi" style="--kpi-c:var(--blue)">
+    <div class="kpi-label">Caméras actives</div>
+    <div class="kpi-val" id="kpiCams">0</div>
+    <div class="kpi-sub">sur {{ cameras|length }} configurées</div>
+    <i class="fa-solid fa-video kpi-icon"></i>
+  </div>
+</div>
+
+<!-- Grille caméras -->
+{% if cameras %}
+<div class="cam-grid grid-{{ [cameras|length, 4]|min }}" id="camGrid">
+  {% for cam in cameras %}
+  <div class="cam-card" id="camCard_{{ cam.id }}">
+    <div class="cam-header">
+      <div class="live-dot" id="liveDot_{{ cam.id }}" style="opacity:.3;background:var(--muted)"></div>
+      <div>
+        <div class="cam-name">{{ cam.nom }}</div>
+        <div class="cam-zone">{{ cam.zone }} {% if cam.chantier_nom %}· {{ cam.chantier_nom }}{% endif %}</div>
+      </div>
+      <button class="btn-cam-sm btn-start-sm" id="camBtn_{{ cam.id }}"
+              onclick="toggleCam({{ cam.id }})">
+        <i class="fa-solid fa-play"></i> Démarrer
+      </button>
+    </div>
+    <div class="cam-video">
+      <div class="cam-placeholder" id="camPh_{{ cam.id }}">
+        <i class="fa-solid fa-camera-slash"></i>
+        <span style="font-size:.75rem;">Non démarrée</span>
+      </div>
+      <img id="camFeed_{{ cam.id }}" src="" style="display:none;"
+           onerror="this.style.display='none';document.getElementById('camPh_{{ cam.id }}').style.display='flex'"/>
+    </div>
+    <div class="cam-footer">
+      <span id="camStatus_{{ cam.id }}" class="compliance-pill pill-ok">— En attente</span>
+      <span style="font-size:.68rem;color:var(--muted);" id="camType_{{ cam.id }}">
+        {{ 'USB' if cam.type_camera == 'usb' else 'IP' }}
+      </span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card" style="margin-bottom:1.25rem;">
+  <div class="empty-state">
+    <i class="fa-solid fa-video-slash"></i>
+    <p>Aucune caméra configurée</p>
+    <a href="/cameras" class="btn btn-primary" style="margin-top:.75rem;">
+      <i class="fa-solid fa-plus"></i> Ajouter une caméra
+    </a>
+  </div>
+</div>
+{% endif %}
+
+<!-- Bottom -->
+<div style="margin-top:0;">
+  <div class="card">
+    <div class="card-header">
+      <i class="fa-solid fa-bell"></i>
+      Violations récentes
+      <span id="violCount" style="margin-left:auto;background:var(--red);color:#fff;font-size:.65rem;padding:1px 8px;border-radius:99px;font-weight:700;">{{ recent|length }}</span>
+      <a href="/historique" class="btn btn-ghost" style="font-size:.72rem;padding:.2rem .65rem;margin-left:.5rem;">Voir tout <i class="fa-solid fa-arrow-right"></i></a>
+    </div>
+    <div class="card-body" id="violList" style="padding:.75rem;">
+      {% if recent %}
+        {% for v in recent %}
+        <div class="viol-item">
+          <div class="viol-dot"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:.82rem;font-weight:600;">{{ v.epi_type }}</div>
+            <div style="font-size:.68rem;color:var(--muted);">
+              {{ v.timestamp[11:19] if v.timestamp else '' }} · {{ v.zone }}
+              {% if v.chantier_nom %} · {{ v.chantier_nom }}{% endif %}
+            </div>
+          </div>
+          {% if v.snapshot %}
+          <a href="/snapshot/{{ v.snapshot }}" target="_blank"
+             style="color:var(--muted);font-size:.75rem;">
+            <i class="fa-solid fa-image"></i>
+          </a>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="no-viol">
+          <i class="fa-solid fa-circle-check"></i>
+          Aucune violation récente
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+const socket = io();
+const camStates = {};
+
+// ── Horloge ──────────────────────────────────────────────────────────────────
+function tick() {
+  const el = document.getElementById('clock');
+  if (el) el.textContent = new Date().toLocaleTimeString('fr-FR');
+}
+setInterval(tick, 1000); tick();
+
+// ── Statut KPI ────────────────────────────────────────────────────────────────
+function updateStatutKPI(ok, violations) {
+  const el  = document.getElementById('kpiStatut');
+  const sub = document.getElementById('kpiStatutSub');
+  if (!el) return;
+  if (ok) {
+    el.innerHTML = '<span style="color:var(--green)">✓ OK</span>';
+    if (sub) sub.textContent = 'tous les EPI portés';
+  } else {
+    const types = [...new Set(violations)].join(', ');
+    el.innerHTML = `<span style="color:var(--red);font-size:.8rem;">⚠ ${types}</span>`;
+    if (sub) sub.textContent = 'EPI manquants détectés';
+  }
+}
+
+// ── Socket events ─────────────────────────────────────────────────────────────
+socket.on('camera_status', d => {
+  const btn  = document.getElementById('camBtn_'  + d.camera_id);
+  const feed = document.getElementById('camFeed_' + d.camera_id);
+  const ph   = document.getElementById('camPh_'   + d.camera_id);
+  const dot  = document.getElementById('liveDot_' + d.camera_id);
+
+  camStates[d.camera_id] = d.running;
+
+  // Update active cameras count
+  const activeCams = Object.values(camStates).filter(Boolean).length;
+  document.getElementById('kpiCams').textContent = activeCams;
+
+  if (d.running) {
+    if (btn) { btn.innerHTML = '<i class="fa-solid fa-stop"></i> Arrêter'; btn.className = 'btn-cam-sm btn-stop-sm'; }
+    if (feed) { feed.src = '/video_feed/' + d.camera_id + '?' + Date.now(); feed.style.display = 'block'; }
+    if (ph)   ph.style.display = 'none';
+    if (dot)  { dot.style.opacity = '1'; dot.style.background = 'var(--red)'; }
+  } else {
+    if (btn) { btn.innerHTML = '<i class="fa-solid fa-play"></i> Démarrer'; btn.className = 'btn-cam-sm btn-start-sm'; }
+    if (feed) { feed.style.display = 'none'; feed.src = ''; }
+    if (ph)   { ph.style.display = 'flex'; }
+    if (dot)  { dot.style.opacity = '.3'; dot.style.background = 'var(--muted)'; }
+  }
+});
+
+socket.on('status_update', d => {
+  const status = document.getElementById('camStatus_' + d.camera_id);
+  if (status) {
+    if (d.is_compliant) {
+      status.textContent = '✓ CONFORME';
+      status.className = 'compliance-pill pill-ok';
+    } else {
+      status.textContent = '✗ VIOLATION';
+      status.className = 'compliance-pill pill-bad';
+    }
+  }
+  updateStatutKPI(d.is_compliant, d.violations || []);
+  if (d.hse) {
+    const kpiWeek = document.getElementById('kpiWeek');
+    if (kpiWeek) kpiWeek.textContent = d.hse.nb_violations;
+  }
+});
+
+socket.on('violation', d => {
+  const list = document.getElementById('violList');
+  const ph = list.querySelector('.no-viol');
+  if (ph) ph.remove();
+
+  const item = document.createElement('div');
+  item.className = 'viol-item';
+  item.innerHTML = `
+    <div class="viol-dot"></div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:.82rem;font-weight:600;">${d.label}</div>
+      <div style="font-size:.68rem;color:var(--muted);">${d.timestamp} · ${d.zone}</div>
+    </div>
+    ${d.snapshot ? `<a href="${d.snapshot}" target="_blank" style="color:var(--muted);font-size:.75rem;"><i class="fa-solid fa-image"></i></a>` : ''}`;
+  list.insertBefore(item, list.firstChild);
+  while (list.children.length > 8) list.removeChild(list.lastChild);
+
+  const cnt = document.getElementById('violCount');
+  cnt.textContent = parseInt(cnt.textContent || '0') + 1;
+  const today = document.getElementById('kpiToday');
+  today.textContent = (parseInt(today.textContent) || 0) + 1;
+
+  if (d.hse) {
+    const kpiWeek = document.getElementById('kpiWeek');
+    if (kpiWeek) kpiWeek.textContent = d.hse.nb_violations;
+  }
+});
+
+// ── Toggle camera ─────────────────────────────────────────────────────────────
+function toggleCam(camId) {
+  const running = camStates[camId];
+  const url = running ? `/api/camera/stop/${camId}` : `/api/camera/start/${camId}`;
+  fetch(url, { method: 'POST' }).then(r => r.json())
+    .then(d => { if (d.error) showToast(d.error, 'error'); });
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+const kpiWeek = document.getElementById('kpiWeek');
+if (kpiWeek) kpiWeek.textContent = '{{ hse.nb_violations }}';
+</script>
+{% endblock %}

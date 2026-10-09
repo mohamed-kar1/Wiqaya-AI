@@ -1,0 +1,321 @@
+{% extends "base.html" %}
+{% block title %}Stock EPI{% endblock %}
+
+{% block extra_css %}
+<style>
+  .stock-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;margin-bottom:1.5rem;}
+  .stock-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem;position:relative;overflow:hidden;}
+  .stock-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--sc,var(--green));}
+  .stock-icon{font-size:2rem;margin-bottom:.5rem;}
+  .stock-name{font-size:.88rem;font-weight:600;margin-bottom:.75rem;}
+  .stock-numbers{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;text-align:center;}
+  .stock-num-label{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+  .stock-num-val{font-family:'Barlow Condensed',sans-serif;font-size:1.5rem;font-weight:700;}
+  .stock-bar{margin-top:.85rem;background:var(--surface2);border-radius:99px;height:5px;overflow:hidden;}
+  .stock-bar-fill{height:100%;border-radius:99px;transition:width .5s;}
+  .stock-actions{display:flex;gap:.4rem;margin-top:.85rem;}
+  .tabs{display:flex;gap:.3rem;margin-bottom:1.25rem;border-bottom:1px solid var(--border);padding-bottom:.75rem;}
+  .tab{padding:.4rem .9rem;border-radius:8px;cursor:pointer;font-size:.82rem;color:var(--muted);transition:all .2s;border:none;background:none;}
+  .tab.active{background:rgba(245,158,11,.1);color:var(--accent);border:1px solid rgba(245,158,11,.2);}
+  .tab-content{display:none;}
+  .tab-content.active{display:block;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title"><i class="fa-solid fa-boxes-stacked"></i> Stock EPI</div>
+  <div style="display:flex;gap:.6rem;">
+    <button class="btn btn-ghost" onclick="openModal('modalAjoutType')">
+      <i class="fa-solid fa-plus"></i> Nouvel EPI
+    </button>
+    <button class="btn btn-primary" onclick="openModal('modalAttribution')">
+      <i class="fa-solid fa-hand-holding"></i> Attribuer
+    </button>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('stock')"><i class="fa-solid fa-warehouse"></i> Inventaire</button>
+  <button class="tab" onclick="switchTab('attributions')"><i class="fa-solid fa-list-check"></i> Attributions</button>
+</div>
+
+<!-- Tab Stock -->
+<div class="tab-content active" id="tab-stock">
+  <div class="stock-grid">
+    {% for epi in epi_types %}
+    {% set pct = ((epi.quantite_dispo or 0) / (epi.quantite_total or 1) * 100)|int %}
+    {% set color = 'var(--green)' if pct > 40 else ('var(--orange)' if pct > 15 else 'var(--red)') %}
+    <div class="stock-card" style="--sc:{{ color }}">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+        <div class="stock-icon">{{ epi.icone }}</div>
+        <div style="display:flex;gap:.3rem;">
+          <button class="btn btn-ghost" style="padding:.2rem .5rem;font-size:.72rem;"
+                  onclick="openAjoutStock({{ epi.id }}, '{{ epi.nom }}')">
+            <i class="fa-solid fa-plus"></i>
+          </button>
+          <button class="btn btn-danger" style="padding:.2rem .5rem;font-size:.72rem;"
+                  onclick="deleteEpiType({{ epi.id }})">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>
+      </div>
+      <div class="stock-name">{{ epi.nom }}</div>
+      <div class="stock-numbers">
+        <div>
+          <div class="stock-num-label">Total</div>
+          <div class="stock-num-val" style="color:var(--text)">{{ epi.quantite_total or 0 }}</div>
+        </div>
+        <div>
+          <div class="stock-num-label">En use</div>
+          <div class="stock-num-val" style="color:var(--orange)">{{ epi.en_utilisation or 0 }}</div>
+        </div>
+        <div>
+          <div class="stock-num-label">Dispo</div>
+          <div class="stock-num-val" style="color:{{ color }}">{{ epi.quantite_dispo or 0 }}</div>
+        </div>
+      </div>
+      <div class="stock-bar">
+        <div class="stock-bar-fill" style="width:{{ pct }}%;background:{{ color }};"></div>
+      </div>
+      {% if (epi.quantite_dispo or 0) <= epi.seuil_alerte %}
+      <div style="margin-top:.5rem;">
+        <span class="badge badge-red"><i class="fa-solid fa-triangle-exclamation"></i> Stock faible</span>
+      </div>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="card" style="grid-column:1/-1;">
+      <div class="empty-state">
+        <i class="fa-solid fa-boxes-stacked"></i>
+        <p>Aucun type d'EPI configuré</p>
+        <button class="btn btn-primary" style="margin-top:.75rem;" onclick="openModal('modalAjoutType')">
+          <i class="fa-solid fa-plus"></i> Ajouter un EPI
+        </button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Tab Attributions -->
+<div class="tab-content" id="tab-attributions">
+  <div class="card">
+    <div class="card-header"><i class="fa-solid fa-list-check"></i> Historique des attributions</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>EPI</th><th>Ouvrier</th><th>Chantier</th><th>Date attribution</th>
+            <th>Expiration</th><th>État</th><th>Statut</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in attributions %}
+          <tr>
+            <td><span style="font-size:1.1rem;">{{ a.epi_icone }}</span> {{ a.epi_nom }}</td>
+            <td>{{ a.ouvrier_nom }}</td>
+            <td style="color:var(--muted);">{{ a.chantier_nom or '—' }}</td>
+            <td style="font-size:.78rem;">{{ a.date_attribution[:10] if a.date_attribution else '—' }}</td>
+            <td style="font-size:.78rem;">{{ a.date_expiration or '—' }}</td>
+            <td>
+              {% if a.etat == 'neuf' %}<span class="badge badge-green">Neuf</span>
+              {% elif a.etat == 'bon' %}<span class="badge badge-blue">Bon</span>
+              {% elif a.etat == 'use' %}<span class="badge badge-orange">Usé</span>
+              {% else %}<span class="badge badge-red">{{ a.etat }}</span>{% endif %}
+            </td>
+            <td>
+              {% if a.statut == 'actif' %}<span class="badge badge-green">En cours</span>
+              {% else %}<span class="badge badge-orange">Retourné</span>{% endif %}
+            </td>
+            <td>
+              {% if a.statut == 'actif' %}
+              <button class="btn btn-ghost" style="font-size:.72rem;padding:.2rem .5rem;"
+                      onclick="retourEPI({{ a.id }})">
+                <i class="fa-solid fa-rotate-left"></i> Retour
+              </button>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:2rem;">Aucune attribution</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nouvel EPI Type -->
+<div class="modal-overlay" id="modalAjoutType">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Nouvel type d'EPI</div>
+      <button class="modal-close" onclick="closeModal('modalAjoutType')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nom de l'EPI</label>
+      <input class="form-input" type="text" id="epiNom" placeholder="ex: Casque de chantier"/>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Icône (emoji)</label>
+        <input class="form-input" type="text" id="epiIcone" value="🦺" maxlength="2"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Seuil d'alerte</label>
+        <input class="form-input" type="number" id="epiSeuil" value="5" min="1"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Durée de vie (mois)</label>
+      <input class="form-input" type="number" id="epiDuree" value="24" min="1"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalAjoutType')">Annuler</button>
+      <button class="btn btn-primary" onclick="createEpiType()">Créer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Ajout Stock -->
+<div class="modal-overlay" id="modalAjoutStock">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Ajouter au stock</div>
+      <button class="modal-close" onclick="closeModal('modalAjoutStock')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">EPI sélectionné</label>
+      <input class="form-input" type="text" id="stockEpiNom" readonly/>
+      <input type="hidden" id="stockEpiId"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Quantité à ajouter</label>
+      <input class="form-input" type="number" id="stockQte" value="10" min="1"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalAjoutStock')">Annuler</button>
+      <button class="btn btn-primary" onclick="ajouterStock()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Attribution -->
+<div class="modal-overlay" id="modalAttribution">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Attribuer un EPI</div>
+      <button class="modal-close" onclick="closeModal('modalAttribution')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Ouvrier</label>
+      <select class="form-select" id="attrOuvrier">
+        <option value="">— Sélectionner —</option>
+        {% for o in ouvriers %}
+        <option value="{{ o.id }}">{{ o.prenom }} {{ o.nom }} — {{ o.poste }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Type d'EPI</label>
+      <select class="form-select" id="attrEpiType">
+        <option value="">— Sélectionner —</option>
+        {% for e in epi_types %}
+        <option value="{{ e.id }}">{{ e.icone }} {{ e.nom }} ({{ e.quantite_dispo or 0 }} dispo)</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Référence / N° série</label>
+        <input class="form-input" type="text" id="attrRef" placeholder="ex: CSQ-042"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">État initial</label>
+        <select class="form-select" id="attrEtat">
+          <option value="neuf">Neuf</option>
+          <option value="bon">Bon état</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Date d'expiration</label>
+      <input class="form-input" type="date" id="attrExpiration"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalAttribution')">Annuler</button>
+      <button class="btn btn-primary" onclick="creerAttribution()">Attribuer</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+async function createEpiType() {
+  const data = {
+    nom: document.getElementById('epiNom').value,
+    icone: document.getElementById('epiIcone').value,
+    seuil_alerte: document.getElementById('epiSeuil').value,
+    duree_vie_mois: document.getElementById('epiDuree').value,
+  };
+  await apiPost('/api/epi_types', data);
+  closeModal('modalAjoutType');
+  showToast('EPI créé avec succès');
+  setTimeout(() => location.reload(), 800);
+}
+
+function openAjoutStock(id, nom) {
+  document.getElementById('stockEpiId').value = id;
+  document.getElementById('stockEpiNom').value = nom;
+  openModal('modalAjoutStock');
+}
+
+async function ajouterStock() {
+  await apiPost('/api/stock/ajout', {
+    epi_type_id: document.getElementById('stockEpiId').value,
+    quantite: document.getElementById('stockQte').value,
+  });
+  closeModal('modalAjoutStock');
+  showToast('Stock mis à jour');
+  setTimeout(() => location.reload(), 800);
+}
+
+async function deleteEpiType(id) {
+  if (!confirm('Supprimer ce type d\'EPI ?')) return;
+  await apiDelete('/api/epi_types/' + id);
+  showToast('EPI supprimé');
+  setTimeout(() => location.reload(), 800);
+}
+
+async function creerAttribution() {
+  await apiPost('/api/attributions', {
+    ouvrier_id: document.getElementById('attrOuvrier').value,
+    epi_type_id: document.getElementById('attrEpiType').value,
+    reference: document.getElementById('attrRef').value,
+    etat: document.getElementById('attrEtat').value,
+    date_expiration: document.getElementById('attrExpiration').value,
+  });
+  closeModal('modalAttribution');
+  showToast('EPI attribué avec succès');
+  setTimeout(() => location.reload(), 800);
+}
+
+async function retourEPI(id) {
+  const etat = prompt('État de retour ? (neuf/bon/use/perdu)', 'bon');
+  if (!etat) return;
+  await apiPost(`/api/attributions/${id}/retour`, { etat });
+  showToast('Retour enregistré');
+  setTimeout(() => location.reload(), 800);
+}
+</script>
+{% endblock %}
